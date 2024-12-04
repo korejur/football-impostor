@@ -1,0 +1,83 @@
+body {
+  font-family: Arial, sans-serif;
+  max-width: 800px;
+  margin: 0 auto;
+  padding: 20px;
+  text-align: center;
+}
+
+.hidden {
+  display: none;
+}
+
+.role-display {
+  margin: 20px;
+  padding: 20px;
+  font-size: 24px;
+  border: 2px solid #333;
+  border-radius: 10px;
+}
+
+.player-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  margin: 20px auto;
+  padding: 20px;
+  border: 2px solid #333;
+  border-radius: 10px;
+  max-width: 300px;
+}
+
+.player-image {
+  width: 200px;
+  height: 200px;
+  object-fit: cover;
+  border-radius: 5px;
+  margin-bottom: 10px;
+}
+
+.player-number {
+  font-size: 24px;
+  margin: 20px;
+  font-weight: bold;
+  color: #333;
+}
+
+button {
+  padding: 10px 20px;
+  font-size: 16px;
+  margin: 10px;
+  cursor: pointer;
+  background-color: #4CAF50;
+  color: white;
+  border: none;
+  border-radius: 5px;
+}
+
+button:hover {
+  background-color: #45a049;
+}
+
+input {
+  padding: 10px;
+  font-size: 16px;
+  margin: 10px;
+  width: 60px;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+}
+
+.setup-container {
+  margin: 20px;
+}
+
+.setup-container label {
+  margin-right: 10px;
+  font-weight: bold;
+}
+
+.error {
+  color: red;
+  margin: 10px;
+}

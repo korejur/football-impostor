@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Football Player Impostor Game</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+
+<body>
+  <h1>Football Player Impostor Game</h1>
+
+  <div id="startSection">
+    <h2>Start New Game</h2>
+    <div class="setup-container">
+      <label for="playerCount">Number of Players:</label>
+      <input type="number" id="playerCount" min="3" value="3">
+    </div>
+    <div class="setup-container">
+      <label for="impostorCount">Number of Impostors:</label>
+      <input type="number" id="impostorCount" min="1" value="1">
+    </div>
+    <div id="errorMessage" class="error hidden"></div>
+    <button onclick="startGame()">Start Game</button>
+  </div>
+
+  <div id="viewSection" class="hidden">
+    <div class="player-number" id="playerNumber"></div>
+    <button onclick="viewRole()">View Your Role</button>
+  </div>
+
+  <div id="roleSection" class="hidden">
+    <h2>Your Role</h2>
+    <div id="roleDisplay" class="role-display"></div>
+    <div id="playerCard" class="player-card hidden">
+      <img id="playerImage" class="player-image" src="" alt="Player">
+      <h3 id="playerName"></h3>
+    </div>
+    <button onclick="nextPlayer()" id="nextButton">Next Player</button>
+  </div>
+
+  <div id="gameComplete" class="hidden">
+    <h2>Game Ready!</h2>
+    <p>All players have viewed their roles. You can start playing!</p>
+    <button onclick="resetGame()">Start New Game</button>
+  </div>
+
+  <script src="script.js"></script>
+  </body>
+</html>
