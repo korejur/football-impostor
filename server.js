@@ -1,14 +1,11 @@
 const express = require('express');
 const app = express();
 const port = 3000;
-const axios = require('axios');
-require('dotenv').config();
+const fs = require('fs'); // Add this for reading JSON file
+const path = require('path');
 
 app.use(express.static('public'));
 app.use(express.json());
-
-const API_TOKEN = process.env.API_TOKEN;
-const API_URL = 'https://api.sportmonks.com/v3/football/players';
 
 // Game state
 let currentGameState = {
@@ -21,58 +18,55 @@ let currentGameState = {
     viewedPlayers: []
 };
 
+let allPlayers = []; // Will store players from data.json
 const usedPlayers = new Set(); // Keep track of used players
-const allPlayers = []; // Store all players from API
-let lastFetchTime = 0; // Track when we last fetched players
-const FETCH_INTERVAL = 1000 * 60 * 60; // Refresh player list every hour
 
-async function fetchAllPlayers() {
+// Load players from data.json
+function loadPlayers() {
     try {
-        const response = await axios.get(`${API_URL}?api_token=${API_TOKEN}`);
-        allPlayers.length = 0; // Clear existing players
-        allPlayers.push(...response.data.data);
-        lastFetchTime = Date.now();
-        usedPlayers.clear(); // Reset used players when getting fresh data
-        console.log(`Fetched ${allPlayers.length} players`);
+        const rawData = fs.readFileSync(path.join(__dirname, 'data.json'));
+        const data = JSON.parse(rawData);
+        allPlayers = data.players.map((name, index) => ({
+            id: index.toString(), // Create unique ID for each player
+            name: name // Keep the name as is
+        }));
+        console.log(`Loaded ${allPlayers.length} players from data.json`);
     } catch (error) {
-        console.error('Error fetching players:', error);
+        console.error('Error loading players from data.json:', error);
+        allPlayers = []; // Reset to empty array if there's an error
     }
 }
 
-async function getRandomPlayer() {
+// Get a random player that hasn't been used
+function getRandomPlayer() {
     try {
-        // Refresh player list if needed
-        if (Date.now() - lastFetchTime > FETCH_INTERVAL || allPlayers.length === 0) {
-            await fetchAllPlayers();
+        // If all players have been used or no players loaded, reload the data
+        if (usedPlayers.size >= allPlayers.length || allPlayers.length === 0) {
+            console.log('Refreshing player pool');
+            loadPlayers();
+            usedPlayers.clear();
         }
 
-        // Get available players (those not used yet)
+        // Get available players (not already used)
         const availablePlayers = allPlayers.filter(player => !usedPlayers.has(player.id));
 
-        // If we're running low on players, refresh the used list
-        if (availablePlayers.length < 5) {
-            usedPlayers.clear();
-            return getRandomPlayer(); // Try again with cleared cache
+        if (availablePlayers.length === 0) {
+            throw new Error('No available players');
         }
 
-        // Get random player from available ones
+        // Pick a random player
         const randomPlayer = availablePlayers[Math.floor(Math.random() * availablePlayers.length)];
-        
+
         // Mark this player as used
         usedPlayers.add(randomPlayer.id);
 
-        console.log(`Selected player ${randomPlayer.display_name || randomPlayer.name}, ${usedPlayers.size} players used`);
-        
-        return {
-            name: randomPlayer.display_name || randomPlayer.name,
-            image: randomPlayer.image_path,
-        };
+        console.log(`Selected random player: ${randomPlayer.name}`);
+        return randomPlayer;
     } catch (error) {
         console.error('Error getting random player:', error);
         return null;
     }
 }
-
 
 app.get('/start-game', async (req, res) => {
     try {
@@ -102,7 +96,7 @@ app.get('/start-game', async (req, res) => {
             });
         }
 
-        const randomPlayer = await getRandomPlayer();
+        const randomPlayer = getRandomPlayer();
         if (!randomPlayer) {
             return res.status(500).json({
                 status: 'error',
@@ -141,7 +135,7 @@ app.get('/start-game', async (req, res) => {
     }
 });
 
-app.get('/view-role', async (req, res) => {
+app.get('/view-role', (req, res) => {
     if (!currentGameState.isActive ||
         currentGameState.currentPlayerIndex >= currentGameState.totalPlayers) {
         res.json({ status: 'gameOver' });
@@ -162,8 +156,6 @@ app.get('/view-role', async (req, res) => {
     });
 });
 
-
-
 app.get('/next-player', (req, res) => {
     if (currentGameState.currentPlayerIndex < currentGameState.totalPlayers) {
         currentGameState.currentPlayerIndex++;
@@ -176,8 +168,6 @@ app.get('/next-player', (req, res) => {
     }
 });
 
-
-// Modify the reset-game endpoint to optionally clear the cache
 app.get('/reset-game', (req, res) => {
     currentGameState = {
         isActive: false,
@@ -189,10 +179,10 @@ app.get('/reset-game', (req, res) => {
         viewedPlayers: []
     };
 
-    // Only clear used players if explicitly requested
     if (req.query.clearCache === 'true') {
         usedPlayers.clear();
-        console.log('Cleared player cache');
+        loadPlayers(); // Reload players when cache is cleared
+        console.log('Cleared player cache and reloaded data');
     }
 
     res.json({ status: 'reset' });
@@ -201,6 +191,9 @@ app.get('/reset-game', (req, res) => {
 app.get('/', (req, res) => {
     res.sendFile(__dirname + '/public/index.html');
 });
+
+// Load players when server starts
+loadPlayers();
 
 app.listen(port, () => {
     console.log(`Game server running at http://localhost:${port}`);

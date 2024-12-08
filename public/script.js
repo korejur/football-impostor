@@ -42,12 +42,10 @@ async function viewRole() {
             if (data.role === 'impostor') {
                 document.getElementById('roleDisplay').textContent = 'You are an IMPOSTOR';
                 document.getElementById('playerCard').classList.remove('hidden'); // Changed this line
-                document.getElementById('playerImage').src = "impostor.jpg";
                 document.getElementById('playerName').textContent = "OOPS";
             } else {
                 document.getElementById('roleDisplay').textContent = 'You are a regular player';
                 document.getElementById('playerCard').classList.remove('hidden');
-                document.getElementById('playerImage').src = data.playerData.image;
                 document.getElementById('playerName').textContent = data.playerData.name;
             }
         }
