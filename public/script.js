@@ -1,92 +1,111 @@
+// Football Impostor — runs fully in the browser (no server needed),
+// so it can be hosted on GitHub Pages.
+
+let allPlayers = [];
+const usedPlayers = new Set();
+
+let game = {
+  isActive: false,
+  player: null,
+  totalPlayers: 0,
+  currentPlayerIndex: 0,
+  impostorIndices: [],
+};
+
+const $ = (id) => document.getElementById(id);
+
+// ---- Data ----
+async function loadPlayers() {
+  if (allPlayers.length) return;
+  const res = await fetch('data.json');
+  if (!res.ok) throw new Error(`data.json: HTTP ${res.status}`);
+  const data = await res.json();
+  allPlayers = data.players.map((name, i) => ({ id: String(i), name }));
+}
+
+// Random footballer that hasn't been used yet (pool refills when exhausted)
+function getRandomPlayer() {
+  if (usedPlayers.size >= allPlayers.length) usedPlayers.clear();
+  const available = allPlayers.filter((p) => !usedPlayers.has(p.id));
+  const pick = available[Math.floor(Math.random() * available.length)];
+  usedPlayers.add(pick.id);
+  return pick;
+}
+
+// Fisher–Yates shuffle of seat indices, take the first `count`
+function pickImpostors(total, count) {
+  const idx = Array.from({ length: total }, (_, i) => i);
+  for (let i = idx.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [idx[i], idx[j]] = [idx[j], idx[i]];
+  }
+  return idx.slice(0, count);
+}
+
+// ---- UI ----
 function showError(message) {
-    const errorDiv = document.getElementById('errorMessage');
-    errorDiv.textContent = message;
-    errorDiv.classList.remove('hidden');
-    setTimeout(() => {
-        errorDiv.classList.add('hidden');
-    }, 3000);
+  const el = $('errorMessage');
+  el.textContent = message;
+  el.classList.remove('hidden');
+  setTimeout(() => el.classList.add('hidden'), 3000);
 }
 
 async function startGame() {
-    const totalPlayers = parseInt(document.getElementById('playerCount').value);
-    const numImpostors = parseInt(document.getElementById('impostorCount').value);
+  const totalPlayers = parseInt($('playerCount').value);
+  const numImpostors = parseInt($('impostorCount').value);
 
-    try {
-        const response = await fetch(`/start-game?players=${totalPlayers}&impostors=${numImpostors}`);
-        const data = await response.json();
+  if (isNaN(totalPlayers) || isNaN(numImpostors)) return showError('Invalid player or impostor count');
+  if (totalPlayers < 3) return showError('Minimum 3 players required');
+  if (numImpostors < 1 || numImpostors >= totalPlayers) return showError('Invalid number of impostors');
 
-        console.log('Start game response:', data);
+  try {
+    await loadPlayers();
+  } catch (error) {
+    console.error('Error loading players:', error);
+    return showError('Failed to load player data. Please try again.');
+  }
 
-        if (data.status === 'started') {
-            document.getElementById('startSection').classList.add('hidden');
-            document.getElementById('viewSection').classList.remove('hidden');
-            document.getElementById('playerNumber').textContent = 'Player 1, get ready!';
-        } else if (data.status === 'error') {
-            showError(data.message);
-        }
-    } catch (error) {
-        console.error('Error starting game:', error);
-        showError('Failed to start game. Please try again.');
-    }
+  game = {
+    isActive: true,
+    player: getRandomPlayer(),
+    totalPlayers,
+    currentPlayerIndex: 0,
+    impostorIndices: pickImpostors(totalPlayers, numImpostors),
+  };
+
+  $('startSection').classList.add('hidden');
+  $('viewSection').classList.remove('hidden');
+  $('playerNumber').textContent = 'Player 1, get ready!';
 }
 
-async function viewRole() {
-    try {
-        const response = await fetch('/view-role');
-        const data = await response.json();
+function viewRole() {
+  if (!game.isActive || game.currentPlayerIndex >= game.totalPlayers) return;
 
-        if (data.status === 'success') {
-            document.getElementById('viewSection').classList.add('hidden');
-            document.getElementById('roleSection').classList.remove('hidden');
+  const isImpostor = game.impostorIndices.includes(game.currentPlayerIndex);
 
-            if (data.role === 'impostor') {
-                document.getElementById('roleDisplay').textContent = 'You are an IMPOSTOR';
-                document.getElementById('playerCard').classList.remove('hidden'); // Changed this line
-                document.getElementById('playerName').textContent = "OOPS";
-            } else {
-                document.getElementById('roleDisplay').textContent = 'You are a regular player';
-                document.getElementById('playerCard').classList.remove('hidden');
-                document.getElementById('playerName').textContent = data.playerData.name;
-            }
-        }
-    } catch (error) {
-        console.error('Error viewing role:', error);
-        showError('Failed to view role. Please try again.');
-    }
+  $('viewSection').classList.add('hidden');
+  $('roleSection').classList.remove('hidden');
+  $('playerCard').classList.remove('hidden');
+  $('roleDisplay').textContent = isImpostor ? 'You are an IMPOSTOR' : 'You are a regular player';
+  $('playerName').textContent = isImpostor ? 'OOPS' : game.player.name;
 }
 
-async function nextPlayer() {
-    try {
-        document.getElementById('roleSection').classList.add('hidden');
+function nextPlayer() {
+  $('roleSection').classList.add('hidden');
+  game.currentPlayerIndex++;
 
-        const response = await fetch('/next-player');
-        const data = await response.json();
-
-        if (data.gameComplete) {
-            document.getElementById('gameComplete').classList.remove('hidden');
-        } else {
-            document.getElementById('viewSection').classList.remove('hidden');
-            document.getElementById('playerNumber').textContent = `Next player, get ready!`;
-        }
-    } catch (error) {
-        console.error('Error moving to next player:', error);
-        showError('Failed to move to next player. Please try again.');
-    }
+  if (game.currentPlayerIndex >= game.totalPlayers) {
+    $('gameComplete').classList.remove('hidden');
+  } else {
+    $('viewSection').classList.remove('hidden');
+    $('playerNumber').textContent = 'Next player, get ready!';
+  }
 }
 
-async function resetGame() {
-    try {
-        await fetch('/reset-game?clearCache=true');
-        document.getElementById('startSection').classList.remove('hidden');
-        document.getElementById('viewSection').classList.add('hidden');
-        document.getElementById('roleSection').classList.add('hidden');
-        document.getElementById('gameComplete').classList.add('hidden');
-        document.getElementById('roleDisplay').textContent = '';
-        document.getElementById('playerCard').classList.add('hidden');
-        document.getElementById('playerImage').src = '';
-        document.getElementById('playerName').textContent = '';
-    } catch (error) {
-        console.error('Error resetting game:', error);
-        showError('Failed to reset game. Please try again.');
-    }
+function resetGame() {
+  game = { isActive: false, player: null, totalPlayers: 0, currentPlayerIndex: 0, impostorIndices: [] };
+  $('startSection').classList.remove('hidden');
+  ['viewSection', 'roleSection', 'gameComplete', 'playerCard'].forEach((id) => $(id).classList.add('hidden'));
+  $('roleDisplay').textContent = '';
+  $('playerName').textContent = '';
 }
